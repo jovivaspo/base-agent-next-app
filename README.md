@@ -1,36 +1,147 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js 16 Agent Template
+
+A production-ready Next.js 16 template with AI agent support, clean architecture, and provider-agnostic design.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Framework | Next.js 16 |
+| Language | TypeScript |
+| UI | React 19 + Tailwind 4 |
+| State | Zustand |
+| Database | PostgreSQL (Supabase/Neon) |
+| ORM | Drizzle |
+| Auth | Supabase Auth |
+| Storage | Cloudinary |
+| Validation | Zod |
+| Testing | Vitest + React Testing Library |
+| E2E | Playwright |
+| Deployment | Vercel |
+
+## Features
+
+- **Clean Architecture** - Repository pattern for easy provider switching
+- **Server Actions** - Type-safe backend logic
+- **Authentication** - Supabase Auth integration
+- **Image Upload** - Cloudinary integration
+- **Type Safety** - Strict TypeScript + Zod validation
+- **Testing** - Vitest (unit) + Playwright (E2E)
+
+## Project Structure
+
+```
+app/
+├── actions/                  # Server Actions
+├── api/webhooks/             # Route Handlers
+├── components/ui/           # Base components
+├── components/features/      # Business components
+├── lib/supabase/            # Supabase client
+├── lib/drizzle/             # Drizzle schema
+├── lib/cloudinary/          # Cloudinary client
+├── services/                 # Business logic
+├── repositories/            # Data access layer
+├── types/                    # TypeScript types
+└── utils/                    # Utilities
+```
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone and install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+# Add your credentials
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Required variables:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `DATABASE_URL`
+- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` (optional)
+- `CLOUDINARY_API_KEY` (optional)
+- `CLOUDINARY_API_SECRET` (optional)
 
-## Learn More
+### 3. Run development server
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Commands
 
-## Deploy on Vercel
+```bash
+# Development
+pnpm dev               # Start dev server
+pnpm build            # Build for production
+pnpm start            # Start production server
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Testing
+pnpm test             # Vitest watch mode
+pnpm test:run        # Vitest single run
+pnpm test:coverage   # Coverage report
+pnpm playwright test  # E2E tests
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Database
+pnpm db:generate     # Generate Drizzle migrations
+pnpm db:push         # Push schema to DB
+pnpm db:migrate      # Run migrations
+
+# Code quality
+pnpm lint            # ESLint
+pnpm typecheck       # TypeScript check
+```
+
+## Repository Pattern
+
+This template uses the repository pattern to make switching providers easy:
+
+```
+UI/Actions → Repositories (Interface) → Implementation (Supabase/Neon/etc.)
+```
+
+To switch database providers:
+1. Create new implementation in `app/repositories/`
+2. Update `app/repositories/index.ts`
+3. Done - rest of app unchanged
+
+## Skills
+
+This template includes AI agent skills for:
+
+- `typescript` - Strict TypeScript patterns
+- `react-19` - React 19 patterns
+- `next-16` - Next.js 16 App Router
+- `tailwind-4` - Tailwind CSS
+- `supabase` - Authentication & RLS
+- `drizzle` - Database ORM
+- `cloudinary` - Image upload
+- `zod-4` - Validation
+- `zustand-5` - State management
+- `tdd` - Test-driven development
+- `playwright` - E2E testing
+- `commit` - Conventional commits
+
+See `AGENTS.MD` for details.
+
+## Deployment
+
+Deploy to Vercel:
+
+```bash
+# Connect your repository to Vercel
+# Add environment variables in Vercel dashboard
+# Push to main - auto deploys
+```
+
+## License
+
+MIT
