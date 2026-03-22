@@ -17,6 +17,7 @@
 | `react-19` | React 19 patterns, Server Components, use() hook | [skill.md](skills/react-19/skill.md) |
 | `next-16` | Next.js 16 App Router, Server Actions, streaming | [skill.md](skills/next-16/skill.md) |
 | `tailwind-4` | cn() utility, no var() in className | [skill.md](skills/tailwind-4/skill.md) |
+| `shadcn` | shadcn/ui components, variants, theming | [skill.md](skills/shadcn/skill.md) |
 | `supabase` | Supabase Auth, RLS, Client configuration | [skill.md](skills/supabase/skill.md) |
 | `drizzle` | Drizzle ORM, schema definition, queries | [skill.md](skills/drizzle/skill.md) |
 | `cloudinary` | Image upload, transformations, optimization | [skill.md](skills/cloudinary/skill.md) |
@@ -38,6 +39,8 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 | Writing React components | `react-19` |
 | Working with App Router / Server Actions | `next-16` |
 | Using Tailwind CSS classes | `tailwind-4` |
+| Adding shadcn/ui components | `shadcn` |
+| Working with shadcn/ui | `shadcn` |
 | Adding authentication | `supabase` |
 | Working with Supabase (Auth, RLS, Client) | `supabase` |
 | Working with database (schema, queries, migrations) | `drizzle` |
@@ -60,7 +63,7 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 |-----------|------------|
 | Framework | Next.js 16 |
 | Language | TypeScript |
-| UI | React 19 + Tailwind 4 |
+| UI | React 19 + shadcn/ui + Tailwind 4 |
 | State | Zustand |
 | Database | PostgreSQL (via Supabase/Neon) |
 | ORM | Drizzle |
@@ -73,70 +76,158 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 
 ---
 
+## Architecture
+
+This template uses **Clean Architecture adapted to Next.js** with three main layers. The fundamental rule is that dependencies always flow inward:
+
+```
+app/ → application/ → domain/
+              ↓
+       infrastructure/
+```
+
+`app/` never directly imports from `infrastructure/`. It only communicates with `application/`, which orchestrates domain and infrastructure.
+
+---
+
 ## Project Structure
 
-This template uses **clean architecture** with separation of concerns to make it easy to swap providers.
-
 ```
-app/
-├── (public)/                 # Public routes
-│   └── login/
-├── (dashboard)/              # Protected routes
-│   └── dashboard/
-├── actions/                  # Server Actions (use repositories)
-├── api/                      # Route Handlers
+app/                          ← Next.js: pages, layouts, actions, route handlers
+├── (ecommerce)/              ← Public ecommerce routes
+│   ├── page.tsx              ← Home
+│   ├── products/
+│   ├── cart/
+│   └── profile/
+├── (auth)/                   ← Authentication routes
+│   ├── login/
+│   ├── register/
+│   └── auth/callback/
+├── dashboard/                ← Admin-only routes
+│   ├── categories/
+│   ├── products/
+│   ├── orders/
+│   └── users/
+├── api/                      ← Route Handlers
 │   └── webhooks/
-├── components/              # UI Components
-│   ├── ui/                 # Base components (Button, Input...)
-│   └── features/            # Feature-specific components
-├── lib/                     # Provider clients (SWAP IF NEEDED)
-│   ├── supabase/           # Supabase client
-│   ├── drizzle/            # Drizzle client + schema
-│   └── cloudinary/         # Cloudinary client
-├── services/                # Business logic (DOMAIN)
-│   ├── auth/
+├── 404/
+└── layout.tsx
+
+domain/                       ← Pure entities and business rules (no external dependencies)
+├── product/
+│   ├── product.entity.ts     ← Types and interfaces
+│   ├── product.errors.ts     ← Typed errors
+│   └── product.rules.ts      ← Pure business validations
+├── order/
+├── category/
+└── user/
+
+application/                  ← Use cases: orchestrate domain + infrastructure
+├── product/
+│   ├── create-product.ts
+│   ├── update-product.ts
+│   ├── delete-product.ts
+│   └── update-thumbnail.ts
+├── order/
+├── category/
+└── user/
+
+infrastructure/               ← Concrete implementations (Drizzle, Cloudinary, Supabase)
+├── db/
+│   ├── index.ts              ← Drizzle client
+│   ├── schema/               ← Table definitions
+│   ├── queries/              ← DB operations
+│   └── types.ts
+├── cloudinary/
+│   ├── upload.ts
+│   └── delete.ts
+└── supabase/
+    ├── client.ts
+    └── server.ts
+
+components/                   ← React components
+├── ui/                       ← Pure components, no domain knowledge
+│   └── Button.tsx, Modal.tsx, DataTable.tsx...
+├── shared/                   ← Knows domain, reusable across app
 │   ├── products/
 │   └── orders/
-├── repositories/            # Data access layer (KEY FOR SWAPPING)
-│   ├── product-repository.ts    # Interface
-│   └── supabase-*-repository.ts # Implementations
-├── types/                   # Global TypeScript types
-└── utils/                   # Utilities
+└── dashboard/                ← Used only in dashboard
+    ├── DashboardSidebar.tsx
+    └── DeleteModal.tsx
+
+lib/                          ← Cross-cutting utilities
+└── api/
+    ├── guards.ts             ← requireAdmin(), requireSameOrigin()
+    └── actions.ts            ← assertAdmin() for Server Actions
 ```
 
-### Repository Pattern
+---
 
-The repository pattern allows you to swap database providers without breaking the rest of the app:
+### Layer Rules
+
+| From | Can import | Cannot import |
+|------|------------|---------------|
+| `domain/` | TypeScript only | External dependencies |
+| `infrastructure/` | `domain/` | `application/`, `app/`, `components/` |
+| `application/` | `domain/`, `infrastructure/` | `app/`, `components/` |
+| `app/` | `application/`, `components/`, `lib/` | `infrastructure/` directly |
+| `components/` | `domain/` (types), `lib/` | `application/`, `infrastructure/`, `app/` |
+
+---
+
+### Server Action Flow
 
 ```
-┌─────────────────────────────────────────────────┐
-│                   UI / ACTIONS                   │
-│              (use repositories)                 │
-└─────────────────────┬───────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────┐
-│                  REPOSITORIES                     │
-│    Interface → Implementation (swap here)      │
-│    ┌─────────────────────────────────────────┐  │
-│    │ product-repository.ts (CONTRACT)        │  │
-│    └─────────────────────────────────────────┘  │
-│    ┌─────────────────────────────────────────┐  │
-│    │ supabase-*-repository.ts (IMPLEMENT)   │  │
-│    └─────────────────────────────────────────┘  │
-└─────────────────────┬───────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────┐
-│                     LIB                          │
-│         Drizzle / Supabase / Cloudinary         │
-└─────────────────────────────────────────────────┘
+app/dashboard/products/actions.ts
+  └─ assertAdmin()                          ← lib/api/actions.ts
+  └─ deleteProductUseCase(id)               ← application/product/delete-product.ts
+       ├─ getProductById(id)                ← infrastructure/db/queries/products.ts
+       ├─ deleteImagesByUrls(urls)         ← infrastructure/cloudinary/delete.ts
+       └─ deleteProduct(id)                 ← infrastructure/db/queries/products.ts
+  └─ revalidatePath('/dashboard/products')  ← Next.js (only in app/)
+  └─ redirect('/dashboard/products')        ← Next.js (only in app/)
 ```
 
-**To switch providers:**
-1. Create new implementation in `repositories/`
-2. Update `repositories/index.ts` to export new implementation
-3. Done — rest of the app is unchanged
+Server Actions should be **thin**: verify permissions, call use case, handle Next.js response. Nothing more.
+
+---
+
+## shadcn/ui
+
+This template uses **shadcn/ui** for UI components. Components are installed via CLI and live in `components/ui/`.
+
+### Quick Commands
+
+```bash
+# Initialize shadcn
+npx shadcn@latest init
+
+# Add a component
+npx shadcn@latest add button card dialog
+
+# Check project info
+npx shadcn@latest info --json
+
+# Search components
+npx shadcn@latest search @shadcn -q "sidebar"
+```
+
+### Key Patterns
+
+- Use `cn()` from `lib/utils.ts` for conditional classes
+- Use semantic colors: `bg-primary`, `text-muted-foreground`
+- Icons: `<SearchIcon data-icon="inline-start" />`
+- Forms: Use Field components, never raw `<div className="space-y-4">`
+
+### Configuration
+
+| Setting | Value |
+|---------|-------|
+| Style | new-york |
+| RSC | true |
+| CSS Variables | enabled |
+| Icon Library | lucide |
+| Aliases | `@/components`, `@/lib` |
 
 ---
 
